@@ -55,4 +55,43 @@ ALTER TABLE [Lists].[SessionEndReasons] ADD  CONSTRAINT [uni_SessionEndReasons_n
 WITH (fillfactor = 100) 
 ON [PRIMARY]
 
+--- 3 ---
+ALTER TABLE [Operation].[MemberSessions]
+ADD CONSTRAINT fk_MemberSessions_EndReasonId_SessionEndReasons_id FOREIGN KEY ([EndReasonId] )  
+REFERENCES [Lists].[SessionEndReasons] ([ID])
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+
+
+ALTER TABLE [Operation].[Members]
+ADD CONSTRAINT fk_Members_MaritalStatusId_MaritalStatuses_id FOREIGN KEY (MaritalStatusId )  
+REFERENCES [Lists].MaritalStatuses ([ID])
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+
+ALTER TABLE [Operation].[Members]  
+ADD  CONSTRAINT [fk_Members_SexualPreferenceId_Genders_Id] FOREIGN KEY([SexualPreferenceId])
+REFERENCES [Lists].[Genders] ([Id])
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+
+ALTER TABLE [Operation].[Members]  
+ADD  CONSTRAINT [fk_Members_GenderId_Genders_Id] FOREIGN KEY([GenderId])
+REFERENCES [Lists].[Genders] ([Id])
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+
+ALTER TABLE [Operation].[Members]  
+ADD  CONSTRAINT [fk_Members_CountryId_Countries_Id] FOREIGN KEY([CountryId])
+REFERENCES [Lists].[Countries] ([Id])
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+
+
+ALTER TABLE [Operation].[Invitations]  
+ADD  CONSTRAINT [fk_Invitations_StatusId_InvitationStatuses_Id] FOREIGN KEY([StatusId])
+REFERENCES [Lists].[InvitationStatuses] ([Id])
+ON DELETE NO ACTION
+ON UPDATE NO ACTION
+
 
