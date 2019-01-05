@@ -94,4 +94,78 @@ REFERENCES [Lists].[InvitationStatuses] ([Id])
 ON DELETE NO ACTION
 ON UPDATE NO ACTION
 
+--- 4 --- 
+ALTER TABLE operation.MemberSessions 
+ADD  CONSTRAINT [pk_MemberSessions_nc_Id] PRIMARY KEY NONCLUSTERED 
+([Id] ASC)
+WITH (fillfactor = 80) 
+ON [PRIMARY]
 
+--- 5 ---
+create table operation.MemberSearches
+(ID INT NOT NULL IDENTITY(1,1),
+ Sessionid INT NOT NULL,
+ DateAndTime DATETIME2(0) NOT NULL DEFAULT SYSDATETIME(),
+ SearchCriteria XML NOT NULL,
+ SearchResultCount INT NOT NULL,
+ CONSTRAINT PK_MemberSearches_c_id PRIMARY KEY CLUSTERED (ID) WITH (fillfactor = 100) on [PRIMARY],
+ CONSTRAINT fk_MemberSearches_Sessionid_MemberSessions_id Foreign key (Sessionid) REFERENCES operation.MemberSessions ([Id]),
+ CONSTRAINT CHK_MemberSearches_SearchResultCount CHECK (SearchResultCount>=0)
+ )
+
+ --- 6 --
+ Alter table [Operation].[Members] 
+ ADD CONSTRAINT CHK_Members_Age CHECK (datediff(dd, birthdate, getdate())>=6574)
+
+ --- 7 ---
+ declare @i int = 1
+ while @i <=100
+ begin
+ insert into operation.members
+ values
+ ('XXXXXX',	cast (RAND()*111222333 as int), 'L', 'M'	,NULL	,2	,NULL	,'xxxxxxxxxx@gmail.com'	,2	, DATEADD(day, (ABS(CHECKSUM(NEWID())) % (datediff(dd, 0,getdate()))), '2001-01-05')	,NULL	,1	,NULL	,getdate())
+ Set @i = @i+1
+ end
+ -- we are receiving the error as the chack constraint prevents us to insert incorrect values
+
+ALTER TABLE operation.members
+NOCHECK CONSTRAINT CHK_Members_Age;   
+GO  
+
+ declare @i int = 1
+ while @i <=100
+ begin
+ insert into operation.members
+ values
+ ('XXXXXX',	cast (RAND()*111222333 as int), 'L', 'M'	,NULL	,2	,NULL	,'xxxxxxxxxx@gmail.com'	,2	, DATEADD(day, (ABS(CHECKSUM(NEWID())) % (datediff(dd, 0,getdate()))), '2001-01-05')	,NULL	,1	,NULL	,getdate())
+ Set @i = @i+1
+ end
+
+-- now we can insert the rows as a check constraint is disabled
+
+ALTER TABLE operation.members
+CHECK CONSTRAINT CHK_Members_Age;
+
+--- 8 ---
+ALTER TABLE [Operation].[Members] DROP CONSTRAINT IF Exists [pk_Members_c_Id]
+
+alter table operation.members
+ADD  CONSTRAINT [pk_Member_n_Id] PRIMARY KEY CLUSTERED 
+([Id] ASC)
+WITH (fillfactor = 100) 
+ON [PRIMARY]
+
+--- 9 ---
+ALTER TABLE operation.MemberSessions 
+ADD CONSTRAINT fk_membersession_memberid_members_id Foreign key (memberid) REFERENCES operation.Members ([Id])
+
+--- 10 ---
+
+ Alter table [Operation].[Members] 
+ WITH NOCHECK ADD CONSTRAINT CHK_Members_Email CHECK (EmailAddress like '%@%' ) 
+
+--- 11 ---
+select s.name schema_name, t.name table_name, c.name constraint_name, c.definition, c.is_not_trusted 
+from sys.check_constraints c
+join sys.schemas s on c.schema_id=s.schema_id
+join sys.tables t on c.parent_object_id = t.object_id
