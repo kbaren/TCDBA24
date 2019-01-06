@@ -284,3 +284,55 @@ SELECT count(*) as [Indexes],
 FROM sys.indexes
 where type_desc <> 'heap'
 
+--- 26 ---
+select OBJECT_ID, index_id, avg_fragmentation_in_percent
+from sys.dm_db_index_physical_stats(DB_ID(),NULL,NULL,NULL,'LIMITED')
+where avg_fragmentation_in_percent > 0.1
+
+DECLARE @ObjectID int,
+		@IndexID int,
+		@Fagmentation_percent float,
+		@SQL nvarchar(200),
+		@Indexname nvarchar(100),
+		@Schemaname nvarchar(50)
+
+DECLARE cursor_index_fragmentation CURSOR   
+     FOR (select OBJECT_ID, index_id, avg_fragmentation_in_percent
+from sys.dm_db_index_physical_stats(DB_ID(),NULL,NULL,NULL,'LIMITED')
+where avg_fragmentation_in_percent > 0.1  )
+
+open cursor_index_fragmentation
+
+FETCH NEXT FROM cursor_index_fragmentation     
+INTO @ObjectID, @IndexID, @Fagmentation_percent
+
+WHILE @@FETCH_STATUS = 0    
+BEGIN 
+  IF @Fagmentation_percent <0.3 
+	BEGIN
+	select @Schemaname = SCHEMA_NAME(schema_id) from sys.tables where object_id = @ObjectID
+	select @Indexname = [name] from sys.indexes where object_id = @ObjectID and index_id = @IndexID
+	SET @SQL = concat('ALTER INDEX ',@Indexname,' on ',@Schemaname,'.', OBJECT_NAME(@ObjectID), ' reorganize')
+	PRINT @SQL
+	END
+  ELSE 
+    BEGIN
+	select @Schemaname = SCHEMA_NAME(schema_id) from sys.tables where object_id = @ObjectID
+	select @Indexname = [name] from sys.indexes where object_id = @ObjectID and index_id = @IndexID
+	SET @SQL = concat('ALTER INDEX ',@Indexname,' on ',@Schemaname,'.', OBJECT_NAME(@ObjectID), ' rebuild')
+	PRINT @SQL
+    END
+  FETCH NEXT FROM cursor_index_fragmentation     
+  INTO @ObjectID, @IndexID, @Fagmentation_percent      
+END 
+
+CLOSE cursor_index_fragmentation;    
+DEALLOCATE cursor_index_fragmentation; 
+
+--- 27 ---
+
+--- 28 ---
+
+--- 29 ---
+  
+
