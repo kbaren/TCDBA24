@@ -1,0 +1,245 @@
+USE [eDate]
+GO
+
+--1.
+ALTER TABLE [Lists].[Countries] ADD  CONSTRAINT [pk_Countries_c_Id] PRIMARY KEY CLUSTERED 
+([Id] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+
+ALTER TABLE [Lists].Genders ADD  CONSTRAINT [pk_Genders_c_Id] PRIMARY KEY CLUSTERED 
+([Id] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+
+ALTER TABLE [Lists].InvitationStatuses ADD  CONSTRAINT [pk_InvitationStatuses_c_Id] PRIMARY KEY CLUSTERED 
+([Id] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+
+ALTER TABLE [Lists].MaritalStatuses ADD  CONSTRAINT [pk_MaritalStatuses_c_Id] PRIMARY KEY CLUSTERED 
+([Id] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+
+ALTER TABLE [Lists].SessionEndReasons ADD  CONSTRAINT [pk_SessionEndReasons_c_Id] PRIMARY KEY CLUSTERED 
+([Id] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+
+--2.
+CREATE UNIQUE NONCLUSTERED INDEX [IX_Countries] ON [Lists].[Countries]
+([Name] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+
+CREATE UNIQUE NONCLUSTERED INDEX [IX_Genders] ON [Lists].[Genders]
+([Name] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+
+CREATE UNIQUE NONCLUSTERED INDEX [IX_InvitationStatuses] ON [Lists].InvitationStatuses
+([Name] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+
+CREATE UNIQUE NONCLUSTERED INDEX [IX_MaritalStatuses] ON [Lists].[MaritalStatuses]
+([Name] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+
+CREATE UNIQUE NONCLUSTERED INDEX [IX_SessionEndReasons] ON [Lists].[SessionEndReasons]
+([Name] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+GO
+
+--3.
+ALTER TABLE [Operation].[Members]  WITH CHECK 
+ADD  CONSTRAINT [fk_Members_CountryId_Countries_Id] FOREIGN KEY([CountryId])
+REFERENCES [Lists].[Countries] ([Id])
+ON DELETE NO ACTION ON UPDATE NO ACTION
+
+ALTER TABLE [Operation].[Members]  WITH CHECK 
+ADD  CONSTRAINT [fk_Members_GenderId_Gender_Id] FOREIGN KEY([GenderId])
+REFERENCES [Lists].[Genders] ([Id])
+ON DELETE NO ACTION ON UPDATE NO ACTION
+
+ALTER TABLE [Operation].[Members]  WITH CHECK 
+ADD  CONSTRAINT [fk_Members_MaritalStatusId_MaritalStatus_Id] FOREIGN KEY(MaritalStatusId)
+REFERENCES [Lists].MaritalStatus ([Id])
+ON DELETE NO ACTION ON UPDATE NO ACTION
+
+ALTER TABLE [Operation].[Invitations]  WITH CHECK 
+ADD  CONSTRAINT [fk_Invitations_StatusId_InvitationStatuses_Id] FOREIGN KEY([StatusId])
+REFERENCES [Lists].[InvitationStatuses] ([Id])
+ON DELETE NO ACTION ON UPDATE NO ACTION
+
+ALTER TABLE [Operation].[MemberSessions]  WITH CHECK 
+ADD  CONSTRAINT [fk_MemberSessions_EndReasonId_SessionEndReasons_Id] FOREIGN KEY([EndReasonId])
+REFERENCES [Lists].[SessionEndReasons] ([Id])
+ON DELETE NO ACTION ON UPDATE NO ACTION
+GO
+
+--4.
+CREATE NONCLUSTERED INDEX [pk_MemberSessions_c_Id] ON OPERATION.MEMBERSESSIONS
+(ID ASC) WITH (FILLFACTOR = 80) ON [PRIMARY]
+
+--5.
+CREATE TABLE [Operation].[MemberSearches]
+(
+	[Id] [int] IDENTITY(1,1) NOT NULL,
+	[SessionId] [int] NOT NULL, FOREIGN KEY([SessionId]) REFERENCES [Operation].[MemberSessions] ([Id]),
+	[DateAndTime] [datetime2](0) NOT NULL default sysdatetime(),
+	[SearchCriteria] [xml] not NULL,
+	[SearchResultCount] [int] NULL constraint searchResult_equal_greater_zero check ([SearchResultCount]>=0),
+ CONSTRAINT [pk_MemberSearches_c_Id] PRIMARY KEY CLUSTERED 
+([Id] ASC) WITH (FILLFACTOR = 100) ON [PRIMARY]
+) 
+ON [PRIMARY]
+GO
+
+--6.
+ALTER TABLE [Operation].[Members] WITH CHECK ADD 
+constraint chk_MembersOver18 CHECK (datediff(yy,birthdate,getdate())>=18)
+
+--7.
+DECLARE @i AS int = 0;
+WHILE @i < 100
+BEGIN
+SET @i = @i + 1;
+INSERT INTO [Operation].[Members]
+           ([Username]
+           ,[Password]
+           ,[FirstName]
+           ,[LastName]
+           ,[StreetAddress]
+           ,[CountryId]
+           ,[PhoneNumber]
+           ,[EmailAddress]
+           ,[GenderId]
+           ,[BirthDate]
+           ,[SexualPreferenceId]
+           ,[MaritalStatusId]
+           ,[Picture]
+           ,[RegistrationDateTime])
+     VALUES
+           ('xx'+cast(RAND()as varchar)
+           ,cast(RAND()as varchar)+'a'
+           ,'xz'+cast(RAND()as varchar)
+           ,'yy'+cast(RAND()as varchar)
+           ,null
+           ,2
+           ,null
+           ,'xxyy'+cast(RAND()as varchar)+'@'+'co'+'.'+'com'
+           ,1
+           ,'1969-12-19'
+           ,null
+           ,null
+           ,null
+           ,getdate())
+END;
+select count(*)from [Operation].[Members]
+
+--100 under 18
+
+DECLARE @i AS int = 0;
+WHILE @i < 100
+BEGIN
+SET @i = @i + 1;
+INSERT INTO [Operation].[Members]
+           ([Username]
+           ,[Password]
+           ,[FirstName]
+           ,[LastName]
+           ,[StreetAddress]
+           ,[CountryId]
+           ,[PhoneNumber]
+           ,[EmailAddress]
+           ,[GenderId]
+           ,[BirthDate]
+           ,[SexualPreferenceId]
+           ,[MaritalStatusId]
+           ,[Picture]
+           ,[RegistrationDateTime])
+     VALUES
+           ('xx'+cast(RAND()as varchar)
+           ,cast(RAND()as varchar)+'a'
+           ,'xz'+cast(RAND()as varchar)
+           ,'yy'+cast(RAND()as varchar)
+           ,null
+           ,2
+           ,null
+           ,'xxyy'+cast(RAND()as varchar)+'@'+'co'+'.'+'com'
+           ,1
+           ,'2006-12-19'
+           ,null
+           ,null
+           ,null
+           ,getdate())
+END;
+
+--cannot because of check constraint >=18
+
+ALTER TABLE [Operation].[Members] NOCHECK CONSTRAINT all
+
+--or for just the birthdate
+
+ALTER TABLE [Operation].[Members] NOCHECK CONSTRAINT chk_MembersOver18
+
+DECLARE @i AS int = 0;
+WHILE @i < 100
+BEGIN
+SET @i = @i + 1;
+INSERT INTO [Operation].[Members]
+           ([Username]
+           ,[Password]
+           ,[FirstName]
+           ,[LastName]
+           ,[StreetAddress]
+           ,[CountryId]
+           ,[PhoneNumber]
+           ,[EmailAddress]
+           ,[GenderId]
+           ,[BirthDate]
+           ,[SexualPreferenceId]
+           ,[MaritalStatusId]
+           ,[Picture]
+           ,[RegistrationDateTime])
+     VALUES
+           ('xx'+cast(RAND()as varchar)
+           ,cast(RAND()as varchar)+'a'
+           ,'xz'+cast(RAND()as varchar)
+           ,'yy'+cast(RAND()as varchar)
+           ,null
+           ,2
+           ,null
+           ,'xxyy'+cast(RAND()as varchar)+'@'+'co'+'.'+'com'
+           ,1
+           ,'2006-12-19'
+           ,null
+           ,null
+           ,null
+           ,getdate())
+END;
+
+--now possible
+--enable check constraint
+ALTER TABLE [Operation].[Members] CHECK CONSTRAINT ALL
+
+--or for just the birthdate
+
+ALTER TABLE [Operation].[Members] CHECK CONSTRAINT chk_MembersOver18
+
+--8 drop and recreate pk cluster index
+
+ALTER TABLE [Operation].[Members] DROP CONSTRAINT [pk_Members_c_Id] 
+GO
+
+ALTER TABLE [Operation].[Members] ADD  CONSTRAINT [pk_Members_c_Id] PRIMARY KEY CLUSTERED 
+([Id] ASC)
+WITH (FILLFACTOR = 100) ON [PRIMARY]
+GO
+
+--9 create fk
+ALTER TABLE [Operation].[MemberSessions]  ADD CONSTRAINT [fk_Members_MemberId] FOREIGN KEY([MemberId])
+REFERENCES [Operation].[Members] ([Id])
+GO
+
+--10 add check constraint to [Operation].[Members] to check format of emailAddress that has '@'
+--without checking existing data (WITH NOCHECK)
+
+ALTER TABLE [Operation].[Members] WITH NOCHECK ADD 
+constraint chk_EmailAddress CHECK (EmailAddress like '%@%')
+
+--11. retrive all check constraints in edate db
+--schemaname, tablename, chackconstraintname, chackconstraintdefinition, istrusted
+--becuase we enabled the constarint with not to check for data alreay in the table
+--isNottrusted=1
+
+SELECT s.name as schemaName, t.name as tablename, 
+cc.name as checkConstraintName, cc.definition as checkConstraintDefinition, 
+iif(cc.is_not_trusted=1, 'notTrusted', 'trusted') as istrusted
+FROM sys.check_constraints cc inner join
+sys.schemas s ON s.schema_id = cc.schema_id
+inner join sys.tables t on cc.parent_object_id = t.object_id

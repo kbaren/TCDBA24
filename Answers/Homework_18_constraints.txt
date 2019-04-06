@@ -1,0 +1,63 @@
+use Northwind
+--1. create composite unique key for orderdate and customerid
+--ALTER TABLE orders
+--ADD CONSTRAINT unique_OneOrderPerDay UNIQUE(orderdate, customerid)
+--where orderdate > datediff(dd,getdate()-1) ;
+CREATE UNIQUE nonclustered INDEX [IDX_unique_OneOrderPerDay] 
+ON orders (orderdate, customerid) 
+WHERE orders.orderdate > '2018-12-30 00:00:00.000'
+
+DROP INDEX IDX_unique_OneOrderPerDay ON orders
+
+--2. check freight>=0
+ALTER TABLE [dbo].[Orders]  WITH CHECK ADD  CONSTRAINT [CK_freight_positive] CHECK  (([freight]>=(0)))
+GO
+
+--3. requiredDate > orderDate
+ALTER TABLE [dbo].[Orders]  WITH CHECK ADD  CONSTRAINT [CK_requiredDate_moreOrderDate] 
+CHECK  ((requiredDate>orderDate))
+GO
+
+--4. 
+CREATE TABLE [dbo].Doors(
+	[DoorNumber] [int] NOT NULL primary key,
+	[Description] varchar(50) NOT NULL 
+) ON [PRIMARY]
+
+CREATE TABLE [dbo].Entries(
+	[EmpID] [int] NOT NULL foreign key references Employees(employeeId),
+	[EntryDate] [datetime] NULL default(getdate()),
+	[DoorNumber] [int] NOT NULL foreign key references Doors([DoorNumber]),
+) ON [PRIMARY]
+
+--good rows
+insert into Doors([DoorNumber], [Description])
+values (987, 'front door');
+insert into Doors([DoorNumber], [Description])
+values (974, 'back door');
+insert into Doors([DoorNumber], [Description])
+values (957, 'side door');
+
+select * from doors
+
+--bad rows pk violation - duplicates
+insert into Doors([DoorNumber], [Description])
+values (987, 'front door');
+insert into Doors([DoorNumber], [Description])
+values (987, 'back door');
+
+--good rows
+insert into Entries ([EmpID], [EntryDate], [DoorNumber])
+values (2, getdate(), 987);
+insert into Entries ([EmpID], [EntryDate], [DoorNumber])
+values (4, getdate(), 957);
+insert into Entries ([EmpID], [EntryDate], [DoorNumber])
+values (6, null, 974);
+
+select * from entries
+
+--bad rows fk violation for empid and doornumber
+insert into Entries ([EmpID], [EntryDate], [DoorNumber])
+values (10, getdate(), 987);
+insert into Entries ([EmpID], [EntryDate], [DoorNumber])
+values (2, getdate(), 988);

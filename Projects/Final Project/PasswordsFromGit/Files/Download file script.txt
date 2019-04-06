@@ -1,0 +1,4 @@
+$clnt = new-object System.Net.WebClient
+$url = "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/10-million-password-list-top-1000000.txt "
+$file = "C:\Users\admin\Documents\TCDBA24\Final Project\PasswordsFromGit\Files\10-million-password-list-top-1000000.csv"
+$clnt.DownloadFile($url, $file)

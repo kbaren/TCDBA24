@@ -1,0 +1,572 @@
+use eDate
+go
+--*****************************************************************************************
+--1. create clustered index on MemberId and LoginDateTime on Operation.MemberSessions table
+
+drop index Operation.MemberSessions.pk_MemberSessions_c_Id
+
+--cannot drop becuse used as PK
+--need to alter the pk so not clustered
+--find fk
+
+SELECT DISTINCT OBJECT_NAME(f.constraint_object_id)
+FROM sys.foreign_key_columns f
+LEFT JOIN sys.indexes p ON p.object_id = f.referenced_object_id
+    WHERE p.object_id = OBJECT_ID('Operation.MemberSessions')
+GO
+
+--fk_Invitations_RequestingSessionId_MemberSessions_Id
+-- DROP FOREIGN KEY
+ALTER TABLE operation.invitations   
+    DROP CONSTRAINT fk_Invitations_RequestingSessionId_MemberSessions_Id -- Use the name we found above
+GO
+
+---- Get PRIMARY KEY name
+SELECT name FROM sys.indexes
+    WHERE object_id = OBJECT_ID('Operation.MemberSessions')
+GO
+-- DROP PRIMARY KEY
+ALTER TABLE Operation.MemberSessions
+    DROP CONSTRAINT pk_MemberSessions_c_Id -- Use the name we found above
+GO
+drop index pk_MemberSessions_c_Id on Operation.MemberSessions
+
+--create PK again without index
+ALTER TABLE [Operation].[MemberSessions]
+    ADD CONSTRAINT [pk_MemberSessions_c_Id]  PRIMARY KEY NONCLUSTERED (ID);
+GO
+
+create clustered index idx_MemSess_MemIdLoginDate  
+on Operation.MemberSessions (MemberId, LoginDateTime) with (FILLFACTOR = 80)
+ON [PRIMARY]
+
+--add fk back to [Operation].[Invitations]
+ALTER TABLE [Operation].[Invitations]  WITH CHECK 
+ADD  CONSTRAINT [fk_Invitations_RequestingSessionId_MemberSessions_Id] 
+FOREIGN KEY([RequestingSessionId])
+REFERENCES [Operation].[MemberSessions] ([Id])
+GO
+--*****************************************************************************************
+--2. query to retrive details of sessions started by member #1234 in 2010.
+--   verify new index is used
+
+select *
+from [Operation].[MemberSessions]
+where MemberId = 1234
+
+--seek was used on the new index
+--*****************************************************************************************
+--3.retrieve sessions of female and single members aged 25.
+-- sort by member id and login date & time
+-- verify new index was used
+
+select *
+from [Operation].[MemberSessions] ms inner join [Operation].[Members] m
+on ms.MemberId = m.Id
+where m.GenderId = 2 
+and m.MaritalStatusId = 1
+and datediff(yy,m.birthdate,getdate()) = 25
+order by ms.MemberId, ms.LoginDateTime 
+
+--new index was used but there was also a scan because [Operation].[Members] was also used
+drop index ix_Members_nc_u_Username#Password on Operation.MemberS
+--*****************************************************************************************
+--4. create a unique new non clustered index on password and username columns
+create unique INDEX [ix_Members_nc_u_UsernamePassword] 
+ON [Operation].[Members] (username, password)
+
+--5. retreive details of member with username 'xxxx' password '12345'
+--   verify new index is used
+select *
+from [Operation].[Members]
+where Username = 'xxxx'
+and password = '12345'
+
+--new index was used
+--*****************************************************************************************
+--6.  try to insert 2 new members with same username and password
+
+insert into [Operation].[Members]
+values ('XXXXXXX', '2144299','ggg','gfd',null,1,1234214,'xxxxxxx@gmail.com', 2, GETDATE(),2,null,null,GETDATE())
+
+--Cannot insert duplicate key row in object 'Operation.Members' with unique index 
+--'ix_Members_nc_u_UsernamePassword'. 
+--The duplicate key value is (XXXXXXX, 2144299).
+--*****************************************************************************************
+--7. display the statistics for the countryid column in 'Operation.Members'
+
+DBCC SHOW_STATISTICS ('[Operation].[Members]', 'countryid')
+--*****************************************************************************************
+--8. write query to retrive invitations by members first name 'paul' last name 'simon' 
+--   add index
+
+select  i.Id
+from Operation.Invitations i inner join Operation.Members m
+on i.ReceivingMemberId = m.Id
+where m.FirstName= 'paul'
+and m.LastName = 'simon'
+
+--scans on members table
+--scans on invitations table
+
+CREATE NONCLUSTERED INDEX [ix_FirstLast_Members] 
+ON [Operation].[Members](firstName, LastName)
+--*****************************************************************************************
+--9. retreive details of members not in ids (5,6,7,8)
+
+select *
+from Operation.Members
+where id in (5,6,7,8)
+
+create unique clustered INDEX [ix_filterId_Members] 
+ON [Operation].[Members] (id)
+
+drop index [ix_filterId_Members] 
+ON [Operation].[Members]
+
+
+--cannot drop because used as PK
+--need to alter the pk so not clustered
+--find fk
+
+SELECT DISTINCT OBJECT_NAME(f.constraint_object_id)
+FROM sys.foreign_key_columns f
+LEFT JOIN sys.indexes p ON p.object_id = f.referenced_object_id
+    WHERE p.object_id = OBJECT_ID('Operation.Members')
+GO
+
+--fk_Invitations_RequestingSessionId_MemberSessions_Id
+-- DROP FOREIGN KEY
+ALTER TABLE operation.invitations   
+    DROP CONSTRAINT fk_Invitations_ReceivingMemberId_Members_Id -- Use the name we found above
+GO
+
+ALTER TABLE operation.MemberSessions   
+    DROP CONSTRAINT fk_MemberSessions_MemberId_Members_Id -- Use the name we found above
+GO
+
+---- Get PRIMARY KEY name
+SELECT name FROM sys.indexes
+    WHERE object_id = OBJECT_ID('Operation.Members')
+GO
+-- DROP PRIMARY KEY
+ALTER TABLE Operation.Members
+    DROP CONSTRAINT pk_Members_c_Id -- Use the name we found above
+GO
+
+--create PK again with index
+ALTER TABLE [Operation].[Members]
+    ADD CONSTRAINT [pk_Members_c_Id]  PRIMARY KEY CLUSTERED (ID);
+GO
+
+--add fk back to [Operation].[Invitations]
+ALTER TABLE [Operation].[Invitations]  WITH CHECK 
+ADD  CONSTRAINT [fk_Invitations_ReceivingMemberId_Members_Id] 
+FOREIGN KEY([ReceivingMemberId])
+REFERENCES [Operation].[MemberSessions] ([Id])
+GO
+
+ALTER TABLE [operation].[MemberSessions] WITH CHECK 
+ADD  CONSTRAINT [fk_MemberSessions_MemberId_Members_Id] 
+FOREIGN KEY([MemberId])
+REFERENCES [Operation].[MemberSessions] ([Id])
+GO
+--*****************************************************************************************
+--10. retrieve members first names, last names where last name starts with 'B' sorted by first and birthdate
+select FirstName, LastName
+from Operation.Members
+where LastName like 'B%'
+order by FirstName , BirthDate desc,LastName 
+
+--index isn't used because of the use of the wildcard %
+select FirstName, LastName
+from Operation.Members
+where left(LastName, 1) = 'B'
+order by FirstName , BirthDate desc,LastName 
+
+drop INDEX [ix_FirstLastNameBirth_Members] 
+ON [Operation].[Members] 
+
+create INDEX [ix_FirstLastNameBirth_Members] 
+ON [Operation].[Members] (FirstName asc, BirthDate, LastName asc)
+--*****************************************************************************************
+--11. retrieve members first names, last names where last name ending with 'B' 
+
+select distinct FirstName, LastName
+from Operation.Members
+where LastName like '%d'
+order by LastName, FirstName
+
+--what can be done to improve performance?
+--remove use of wildcard % (doesn't help)
+--fragmentation check
+SELECT index_level, page_count,
+avg_page_space_used_in_percent, avg_fragmentation_in_percent
+FROM sys.dm_db_index_physical_stats
+(DB_ID(N'edate'), OBJECT_ID(N'Operation.Members'), NULL, NULL , 'DETAILED');
+
+--get rid of the fragmentation
+ALTER INDEX [ix_FirstLast_Members] ON Operation.Members REBUILD
+ALTER INDEX [ix_LastName_Members] ON Operation.Members REBUILD
+ALTER INDEX [ix_Members_nc_nu_BirthDate#GenderId#SexualPreferenceId] ON Operation.Members REBUILD
+ALTER INDEX [ix_Members_nc_u_UsernamePassword] ON Operation.Members REBUILD
+ALTER INDEX [pk_Members_c_Id] ON Operation.Members REBUILD
+
+--didn't help
+--*****************************************************************************************
+--12. retrieve details of members whos mails not in 'gmail.com'
+
+select *
+from Operation.Members
+where EmailAddress not like '%@gmail.com'
+
+drop INDEX [ix_FirstLast_Members] 
+ON [Operation].[Members]
+
+CREATE NONCLUSTERED INDEX [ix_EmailAddress_Members] 
+ON [Operation].[Members](EmailAddress)
+where EmailAddress <> '%@gmail.com'
+
+CHECKPOINT
+DBCC DROPCLEANBUFFERS -- It clears out the SQL Server buffer cache
+GO
+SET STATISTICS IO ON
+SELECT * FROM [Operation].[Members] WITH(INDEX(ix_EmailAddress_Members))
+WHERE EmailAddress <> '%@gmail.com'
+SET STATISTICS IO OFF
+--*****************************************************************************************
+--13. retrieve members birthdate > 50 and streetAddress = null
+
+select BirthDate
+from Operation.Members
+where datediff(yy,birthdate,getdate()) > 50
+and StreetAddress is null 
+
+drop INDEX ix_Homeless_Members on [Operation].[Members]
+
+CREATE NONCLUSTERED INDEX [ix_Homeless_Members]
+ON [Operation].[Members](StreetAddress)
+INCLUDE (birthdate)
+WHERE StreetAddress IS NULL
+--*****************************************************************************************
+
+--14. create a clustered index on [Operation].[Members] with id as index in asc
+--    created in primary filegroup with fillfactor 100
+ 
+drop index [ix_filterId_Members] ON [Operation].[Members]
+
+create clustered index idx_idFillFact_Members  
+on Operation.Members (id) with (FILLFACTOR = 100)
+ON [PRIMARY]
+--*****************************************************************************************
+--15. create non clustered index on [Operation].[MemberSessions]
+--    enddatetime and endreasonid as indexes asc
+--    memberid included
+--    on primary filgroup, fill factor 80
+
+create nonclustered index idx_id_Members  
+on [Operation].[MemberSessions] (EndDateTime asc, EndReasonId asc) 
+include (MemberId) with (FILLFACTOR = 80)
+ON [PRIMARY]
+--*****************************************************************************************
+--16.
+
+select
+memberid = members.Id,
+memberfistname = members.FirstName,
+memberlastname = members.LastName,
+logindatetime = MemberSessions.LoginDateTime,
+sessionenddate = MemberSessions.EndDateTime
+from Operation.Members as members
+inner join
+Operation.MemberSessions as MemberSessions
+on
+members.Id = MemberSessions.MemberId
+where
+members.CountryId = 4
+and
+year(membersessions.logindatetime) = 2010
+and
+month(membersessions.logindatetime) = 6
+order by
+memberid asc, LoginDateTime asc
+--*****************************************************************************************
+--17.
+select
+members.Id as memberid,
+members.FirstName as memberfistname,
+members.LastName as memberlastname,
+MemberSessions.LoginDateTime as logindatetime,
+MemberSessions.EndDateTime as sessionenddate
+from Operation.Members as members
+inner join
+Operation.MemberSessions as MemberSessions
+on
+members.Id = MemberSessions.MemberId
+where
+members.CountryId = 4
+and
+year(membersessions.logindatetime) = 2010
+and
+month(membersessions.logindatetime) = 6
+order by
+memberid asc, LoginDateTime asc
+
+create nonclustered index idx_loginEndDate_MemberSessions  
+on [Operation].[MemberSessions] (MemberId, LoginDateTime asc, EndDateTime asc) 
+with (FILLFACTOR = 80)
+ON [PRIMARY]
+
+create nonclustered index idx_IdCountryId_Members  
+on [Operation].[Members] (id asc, CountryId) with (FILLFACTOR = 80)
+ON [PRIMARY]
+
+--*****************************************************************************************
+--18. retreive list of indexes in edate db
+use edate
+go
+SELECT OBJECT_NAME(S.object_id) AS table_name, I.name AS index_name, 
+i.type_desc AS index_type, IIF(i.is_unique=1,'unique','notUnique'), i.fill_factor
+FROM sys.dm_db_index_usage_stats AS S
+INNER JOIN sys.indexes AS i
+ON S.object_id = I.object_id
+AND S.index_id = I.index_id
+
+--*****************************************************************************************
+--19. disply stats for countryId in operation.members
+
+DBCC SHOW_STATISTICS ('[Operation].[Members]', 'countryid')
+--*****************************************************************************************
+--20  create a new table checkfillfactor
+
+create table checkfillfactor
+(
+filler1 varCHAR(100) NOT NULL
+);
+GO
+
+DECLARE @i AS int = 0;
+WHILE @i < 1000
+BEGIN
+SET @i = @i + 1;
+INSERT INTO checkfillfactor
+(filler1)
+VALUES
+(@i);
+END;
+
+
+drop table checkfillfactor
+
+select count(*)
+from checkfillfactor
+
+
+create nonclustered index idx_filler1_checkfillfactor  
+on dbo.checkfillfactor (filler1) with (FILLFACTOR = 80)
+ON [PRIMARY]
+
+create nonclustered index idx_filler1_2_checkfillfactor  
+on dbo.checkfillfactor (filler1) with (FILLFACTOR = 10)
+ON [PRIMARY]
+
+
+
+select  i.name, i.fill_factor, OBJECT_NAME(s.object_id) as tableName,s.reserved_page_count, s.used_page_count, s.row_count
+from sys.dm_db_partition_stats s inner join sys.indexes i
+on OBJECT_NAME(s.object_id) = OBJECT_NAME(i.object_id)
+where OBJECT_NAME(s.object_id)='checkfillfactor'
+and i.type_desc <> 'heap'
+and s.index_id > 1
+--*****************************************************************************************
+--21. check fragmentation of index
+
+select avg_fragmentation_in_percent as frag_percent, avg_fragment_size_in_pages as frag_size,
+page_count as index_size
+from sys.dm_db_index_physical_stats(db_id('edate'),object_id('checkfillfactor'),null,null,null)
+
+--*****************************************************************************************
+--22. show list of indexes in db.
+--    for each index show: schema, table name, index name, index type, unique/not unique, fill factor size
+
+use edate
+go
+SELECT db_name(t.schema_id) as [schema_name], OBJECT_NAME(S.object_id) AS table_name, I.name AS index_name,
+i.type_desc AS index_type, IIF(i.is_unique=1,'unique','notUnique') as [unique/not unique], i.fill_factor
+FROM sys.dm_db_index_usage_stats AS S
+INNER JOIN sys.indexes AS i
+ON S.object_id = I.object_id
+inner join sys.tables t
+on i.object_id = t.object_id
+AND S.index_id = I.index_id
+
+--*****************************************************************************************
+--23. create table with char(10)
+drop table A
+create table A
+(
+filler1 CHAR(10) NOT NULL
+);
+GO
+
+DECLARE @i AS int = 0;
+WHILE @i < 10000
+BEGIN
+SET @i = @i + 1;
+INSERT INTO A
+(filler1)
+VALUES
+(FORMAT(@i,'0000'));
+END;
+
+CREATE TABLE [dbo].[A](
+	[A] [char](10) NOT NULL,
+	[Computed]  AS ([A]+[A]) PERSISTED NOT NULL
+) ON [PRIMARY]
+GO
+
+select *
+from A
+
+--show table size
+	SELECT 
+    s.Name AS SchemaName,
+    t.NAME AS TableName,
+    p.rows AS RowCounts,
+    SUM(a.total_pages) * 8 AS TotalSpaceKB, 
+    SUM(a.used_pages) * 8 AS UsedSpaceKB, 
+    (SUM(a.total_pages) - SUM(a.used_pages)) * 8 AS UnusedSpaceKB
+FROM 
+    sys.tables t
+INNER JOIN 
+    sys.schemas s ON s.schema_id = t.schema_id
+INNER JOIN      
+    sys.indexes i ON t.OBJECT_ID = i.object_id
+INNER JOIN 
+    sys.partitions p ON i.object_id = p.OBJECT_ID AND i.index_id = p.index_id
+INNER JOIN 
+    sys.allocation_units a ON p.partition_id = a.container_id
+WHERE 
+    t.NAME = 'A'   
+GROUP BY 
+    t.Name, s.Name, p.Rows
+ORDER BY 
+    s.Name, t.Name
+
+--table space is the same
+
+--*****************************************************************************************
+--24.
+--a. yes you can birthdate not null in filtered index
+--b. no like is not allowed in filtered index
+--*****************************************************************************************
+--25.
+
+SELECT count(*) as [Indexes], 
+(select count(*) from sys.indexes where has_filter = 1) as [Filtered], 
+(select count(*) FROM sys.indexes where type_desc = 'CLUSTERED') as [Clustered], 
+(select count(*) FROM sys.indexes where type_desc = 'NONCLUSTERED')  as [NonClustered], 
+(select count(*) FROM sys.indexes where is_unique=1) as [Unique],
+(select count(*) FROM sys.indexes where is_unique=0) as [NotUnique],
+(select count(*) FROM sys.indexes where is_primary_key=1) as [PK],
+(select count(*) FROM sys.indexes where is_primary_key=0) as [NotPK]
+FROM sys.indexes
+where type_desc <> 'heap'
+
+--*****************************************************************************************
+--26.
+select index_id, (select count(*) from sys.dm_db_index_physical_stats (DB_ID(), null, null, null, 'LIMITED') where avg_fragmentation_in_percent >10)
+from sys.dm_db_index_physical_stats (DB_ID(), null, null, null, 'LIMITED')
+--cursor not learnt
+--*****************************************************************************************
+--27. cursor
+--*****************************************************************************************
+--28. 
+SELECT i.name as indexName, OBJECT_NAME(i.OBJECT_ID) as tableName, i.type_desc as IndexType,
+(select count(*) FROM sys.indexes where is_unique=1) as [UniqueTable],
+(select count(*) FROM sys.indexes where is_unique=0) as [NotUniqueTable],
+s.system_scans as noOfScans, o.create_date as dateOfCreation
+FROM sys.indexes as i
+inner join sys.dm_db_index_usage_stats as s
+on S.object_id = I.object_id
+inner join sys.objects AS O
+on O.object_id = i.object_id
+where i.name <> 'null'
+group by i.name, i.object_id, i.index_id, s.system_scans, o.create_date, i.type_desc
+
+--*****************************************************************************************
+--29. there is improvment with INCLUDE as there is no longer 'key lookup' just seek
+use AdventureWorks2017
+go
+drop index idx_postalCode_Address on [Person].[Address]
+
+create nonclustered index idx_postalCode_Address  
+on [Person].[Address] (PostalCode) 
+INCLUDE (City, StateProvinceID)
+--WHERE PostalCode = '84407'
+
+select City, StateProvinceID
+from [Person].[Address]
+WHERE PostalCode = '84407'
+
+--*****************************************************************************************
+--see if index was used
+SELECT OBJECT_NAME(S.object_id) AS table_name,
+I.name AS index_name,
+S.user_seeks, S.user_scans, s.user_lookups
+FROM sys.dm_db_index_usage_stats AS S
+INNER JOIN sys.indexes AS i
+ON S.object_id = I.object_id
+AND S.index_id = I.index_id
+WHERE S.object_id = OBJECT_ID(N'Sales.Orders', N'U')
+AND I.name = N'idx_nc_shipcity';
+
+
+SELECT OBJECT_NAME(S.object_id) AS table_name, s.user_updates as userUpdates,
+I.name AS index_name,
+S.user_seeks, S.user_scans, s.user_lookups
+FROM sys.dm_db_index_usage_stats AS S
+INNER JOIN sys.indexes AS i
+ON S.object_id = I.object_id
+AND S.index_id = I.index_id
+WHERE S.object_id = OBJECT_ID(N'Operation.Members');
+
+
+--general information about tables and indexes
+
+SELECT OBJECT_NAME(object_id) AS table_name,
+name AS index_name, type, type_desc
+FROM sys.indexes
+WHERE object_id = OBJECT_ID(N'Operation.Members');
+
+--heap allocation check
+--clustered index allocation check
+
+SELECT index_type_desc, page_count,
+record_count, avg_page_space_used_in_percent
+FROM sys.dm_db_index_physical_stats
+(DB_ID(N'edate'), OBJECT_ID(N'Operation.Members'), NULL, NULL , 'DETAILED');
+EXEC dbo.sp_spaceused @objname = N'Operation.Members', @updateusage = true;
+
+--fragmentation check
+
+SELECT index_level, page_count,
+avg_page_space_used_in_percent, avg_fragmentation_in_percent
+FROM sys.dm_db_index_physical_stats
+(DB_ID(N'edate'), OBJECT_ID(N'Operation.Members'), NULL, NULL , 'DETAILED');
+
+ALTER INDEX [ix_FirstLast_Members] ON Operation.Members REBUILD
+ALTER INDEX [ix_LastName_Members] ON Operation.Members REBUILD
+ALTER INDEX [ix_Members_nc_nu_BirthDate#GenderId#SexualPreferenceId] ON Operation.Members REBUILD
+ALTER INDEX [ix_Members_nc_u_UsernamePassword] ON Operation.Members REBUILD
+ALTER INDEX [pk_Members_c_Id] ON Operation.Members REBUILD
+
+select * from sys.tables
+
+select * from sys.indexes
+where object_name (object_id) = 'MemberSessions'
+
+select  object_name(object_id),* from 
+sys.dm_db_index_physical_stats (DB_ID(),null,
+ NULL , NULL, 'LIMITED')
+ where  object_name(object_id)  = 'Operation.MemberSessions'

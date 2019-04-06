@@ -1,0 +1,211 @@
+use eDate
+go
+
+ALTER AUTHORIZATION ON DATABASE::eDate TO [sa]
+go
+
+CREATE SCHEMA common
+
+--1.
+create view Operation.SomeInvitations_vw
+as
+select id, RequestingSessionId, receivingMemberId, CreationDateTime, statusId, ResponseDateTime
+from operation.Invitations
+
+--b.
+insert into Operation.SomeInvitations_vw
+values (458789,55768,'2018-12-03 21:25:43', 3,'2018-12-04 16:34:55')
+
+--c.
+alter view Operation.SomeInvitations_vw
+as
+select id, RequestingSessionId, receivingMemberId, CreationDateTime, statusId
+from operation.Invitations
+
+--d. cannot insert. is thinking to id
+
+--e.
+insert into Operation.SomeInvitations_vw
+values (459789,55768,'2018-12-04 21:25:43', 3)
+
+--f.
+alter view Operation.SomeInvitations_vw
+as
+select id, RequestingSessionId,  CreationDateTime, statusId
+from operation.Invitations
+
+
+--g. cannot insertnull to NN column
+insert into Operation.SomeInvitations_vw
+values (459789,'2018-12-04 21:25:43', 3)
+
+--h.
+alter view Operation.SomeInvitations_vw
+as
+select id, RequestingSessionId, receivingMemberId, CreationDateTime, statusId
+from operation.Invitations
+
+--i. cannot insertnull to NN column
+insert into Operation.SomeInvitations_vw
+values (459889,55868,'2018-12-04 21:25:43', 2)
+
+--j.
+alter view Operation.SomeInvitations_vw
+as
+select id, RequestingSessionId, receivingMemberId, CreationDateTime, statusId
+from operation.Invitations
+WITH CHECK OPTION
+
+
+--k.
+insert into Operation.SomeInvitations_vw
+values (459889,55868,'2018-12-05 21:25:43', 2)
+
+--l.
+alter view Operation.SomeInvitations_vw
+as
+select i.id, i.RequestingSessionId, i.receivingMemberId, i.CreationDateTime, i.statusId, m.MemberId
+from operation.Invitations i join Operation.MemberSessions m
+on i.receivingMemberid = m.MemberId
+WITH CHECK OPTION
+
+--m. cannot update becuse there are now multiple tables.
+insert into Operation.SomeInvitations_vw
+values (459889,55868,'2018-12-05 21:25:43', 2)
+
+--n.
+create view Operation.MemberSessionsView_vw
+as
+select id, MemberId, LoginDateTime, EndDateTime, EndReasonId
+from Operation.MemberSessions
+
+--o
+create view Operation.LastMonthSessions_vw
+as
+select id, MemberId, LoginDateTime, EndDateTime, EndReasonId
+from Operation.MemberSessionsView_vw
+where month(LoginDateTime) = month(getdate())-1
+
+--p.
+create view Operation.SingleMembersSessions_vw
+as
+select ms.Id, ms.MemberId, LoginDateTime, EndDateTime, EndReasonId
+from Operation.MemberSessions ms join Lists.MaritalStatuses m
+on ms.MemberId = m.Id
+where m.name = 'Single'
+
+--q.
+create view Operation.MembersSessionStatistics_vw
+as
+select c.Name as country, g.Name as gender, ms.Name as MaritalStatus,
+       count(mss.Id) as numberOfSessions ,
+	   avg(abs(datepart(ss,mss.EndDateTime)- datepart(ss,mss.LoginDateTime))) as averageSessionDuration
+from lists.Countries c, lists.Genders g, Lists.MaritalStatuses ms, 
+     Operation.MemberSessions mss, Operation.Members mems, lists.SessionEndReasons ser
+where mems.Id =mss.MemberId 
+and mems.GenderId =g.Id
+and c.Id = mems.CountryId
+and mems.MaritalStatusId = ms.Id
+and ser.Id =  mss.EndReasonId
+and ser.Id = 2
+group by c.Name, g.Name, ms.Name
+
+--r.*****************************************************************************
+alter view Operation.MembersSessionStatistics_vw
+as
+select c.Name as country, g.Name as gender, ms.Name as MaritalStatus,
+       count(mss.Id) as numberOfSessions ,
+	   avg(abs(datepart(ss,mss.EndDateTime)- datepart(ss,mss.LoginDateTime))) as averageSessionDurationO,
+	   avg(abs(datepart(ss,closedSessions.EndDateTime)- datepart(ss,closedSessions.LoginDateTime))) as averageSessionDuration,
+	   count(sessions.Id) as numberOfOpenClosedSessions
+from lists.Countries c, lists.Genders g, Lists.MaritalStatuses ms, 
+     Operation.MemberSessions mss, Operation.Members mems, lists.SessionEndReasons ser,
+	 (  
+	    select mss.MemberId, mss.Id, mss.EndDateTime
+		from Operation.MemberSessions mss, lists.SessionEndReasons ser
+		--on ser.Id =  mss.EndReasonId
+		where (ser.Id = 2 or mss.EndDateTime is null)
+	  )as sessions right join
+	  (
+		select mss.MemberId, mss.EndDateTime as EndDateTime, mss.LoginDateTime as LoginDateTime
+		from Operation.MemberSessions mss, lists.SessionEndReasons ser
+		--on ser.Id =  mss.EndReasonId
+		where ser.Id = 2 
+	  )as closedSessions
+on closedSessions.MemberId= sessions.MemberId
+where mems.Id =mss.MemberId 
+and mems.GenderId =g.Id
+and c.Id = mems.CountryId
+and mems.MaritalStatusId = ms.Id
+--and ser.Id =  mss.EndReasonId
+group by c.Name, g.Name, ms.Name
+
+--s.
+create view Operation.FemaleItalianMembers_vw
+as
+select memb.Id as memberId, memb.FirstName as memberName, memb.RegistrationDateTime as registrationDate
+from Operation.Members memb join lists.Countries c 
+on c.Id = memb.CountryId join lists.Genders g
+on g.Id = memb.GenderId
+where c.Name = 'italy'
+and g.Name='female'
+
+--t.
+select itmem.memberId, itmem.memberName, memsess.Id as sessionId, memsess.LoginDateTime
+from Operation.FemaleItalianMembers_vw itmem join Operation.MemberSessions memsess
+on itmem.memberId = memsess.MemberId
+where year(memsess.LoginDateTime) = year(getdate())
+
+--u.
+insert into Operation.FemaleItalianMembers_vw
+values ('gfdfgd', '2018-11-21 07:42:59')
+
+--cannot insert null into not null columns.
+
+--v.
+alter view Operation.FemaleItalianMembers_vw
+as
+select memb.Id as memberId, memb.Username, memb.Password, memb.FirstName as memberName, memb.LastName,
+memb.CountryId, memb.EmailAddress, memb.GenderId, memb.BirthDate, memb.RegistrationDateTime as registrationDate
+from Operation.Members memb 
+where memb.CountryId =5
+and memb.GenderId = 2
+
+--w.
+insert into Operation.FemaleItalianMembers_vw
+values ('ghtrew', '65432', 'Avig', 'Bento',2, 'fgdfhg@ghjk', 2, 
+		'2010-11-21 07:42:59', '2018-11-21 07:42:59')
+
+
+--x.
+insert into Operation.FemaleItalianMembers_vw
+values ('ghtrew', '65432', 'Avig', 'Bento',1, 'fgdfhg@ghjk', 1, 
+		'2010-11-21 07:42:59', '2018-11-21 07:42:59')
+
+select * from Operation.FemaleItalianMembers_vw
+where CountryId = 1
+--hes not in the view because of the conditionooking for only italian
+
+--y.
+alter view Operation.FemaleItalianMembers_vw
+as
+select memb.Id as memberId, memb.Username, memb.Password, memb.FirstName as memberName, memb.LastName,
+memb.CountryId, memb.EmailAddress, memb.GenderId, memb.BirthDate, memb.RegistrationDateTime as registrationDate
+from Operation.Members memb 
+where memb.CountryId =5
+and memb.GenderId = 2
+WITH CHECK OPTION
+
+insert into Operation.FemaleItalianMembers_vw
+values ('ghtrew', '65432', 'YANV', 'Bento',1, 'fgdfhg@ghjk', 1, 
+		'2010-11-21 07:42:59', '2018-11-21 07:42:59')
+
+
+
+--select * from operation.Invitations
+select * from Operation.MemberSessions mss where mss.EndDateTime is null
+
+select * from lists.Countries ser
+select * from lists.Genders
+select * from Operation.Members
+select * from Operation.MemberSessions
