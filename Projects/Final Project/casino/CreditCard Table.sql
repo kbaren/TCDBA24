@@ -30,7 +30,7 @@ CREATE TABLE [Admin].utbl_CreditCard
 
 GO  
 truncate table [Admin].utbl_Transactions
-exec usp_MoneyDeposit 'TestKarina', NULL , NULL, '500'
+exec usp_MoneyDeposit 'TestAvigail', '123456789' , '11/2020', '100.456'
 
 select * 
 from [Admin].utbl_CreditCard
