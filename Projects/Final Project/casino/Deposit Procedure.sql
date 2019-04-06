@@ -41,7 +41,7 @@ BEGIN
 		BEGIN
 			IF @depositAmmount>'1000'
 				BEGIN
-					PRINT 'Please insert deposit ammount smaller than 1000'
+					PRINT 'Please insert deposit ammount smaller than 1000.'
 					RETURN
 				END
 			ELSE
@@ -77,7 +77,7 @@ BEGIN
 									VALUES
 										(@userName, @depositAmmount, 'Deposit', GETDATE())
 
-									PRINT  'Your current balance ' + CONVERT(nvarchar, dbo.[udf_Bankroll](@userName))
+									PRINT  'Thank you! Your current balance is ' + CONVERT(nvarchar, dbo.[udf_Bankroll](@userName))
 								END
 						END
 				END

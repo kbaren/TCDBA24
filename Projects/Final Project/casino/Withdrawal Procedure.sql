@@ -42,7 +42,7 @@ BEGIN
 		BEGIN
 			IF @withdrawalAmmount> dbo.[udf_Bankroll](@userName)
 				BEGIN
-					PRINT  'Your current balance ' + CONVERT(nvarchar, dbo.[udf_Bankroll](@userName)) + '  is too small. Try smaller ammount'
+					PRINT  'Your current balance ' + CONVERT(nvarchar, dbo.[udf_Bankroll](@userName)) + '  is too small. Try smaller ammount/'
 					RETURN
 				END
 			ELSE
@@ -52,7 +52,7 @@ BEGIN
 					VALUES
 						(@userName, @withdrawalAmmount, 'Withdrawal', GETDATE())
 					PRINT  'Thank you! Your current balance is ' + CONVERT(nvarchar, dbo.[udf_Bankroll](@userName))
-					PRINT  'The check will be sent to ' + @shippingAdress + '. Please inform our Support Team at support@casino.com if you didn''t receive the check in 5 post days'  
+					PRINT  'The check will be sent to ' + @shippingAdress + '. Please inform our Support Team at support@casino.com if you didn''t receive the check in 5 post days.'  
 				END
 		END
 END
