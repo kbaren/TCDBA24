@@ -18,9 +18,9 @@ GO
 -- Create date: <Create Date,,>
 -- Description:	<Description,,>
 -- =============================================
-DROP PROCEDURE IF EXISTS usp_MoneyWithdrawal
+--DROP PROCEDURE IF EXISTS usp_MoneyWithdrawal
 GO
-CREATE PROCEDURE usp_MoneyWithdrawal
+CREATE or Alter PROCEDURE usp_MoneyWithdrawal
 	-- Add the parameters for the stored procedure here
 	@userName				NVARCHAR(50)	, 
 	@withdrawalAmmount		FLOAT			,

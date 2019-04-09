@@ -18,7 +18,7 @@ GO
 -- Create date: <Create Date,,>
 -- Description:	<Description,,>
 -- =============================================
-CREATE PROCEDURE usp_Cashier 
+CREATE OR ALTER PROCEDURE usp_Cashier 
 	-- Add the parameters for the stored procedure here
 	@userName	NVARCHAR(50)	, 
 	@action		NVARCHAR(10)
@@ -41,9 +41,15 @@ BEGIN
 	ELSE
 		BEGIN
 			IF  @action = 'Withdrawal'
-		BEGIN
-			PRINT 'Please insert credit card number, expiry date and deposit ammount'
-			DECLARE
+				BEGIN
+					PRINT 'Please insert credit card number, expiry date and deposit ammount'
+					DECLARE
+						@withdrawalAmmount		FLOAT			,
+						@shippingAdress			NVARCHAR(500)
+					EXEC usp_MoneyWithdrawal @userName = @userName, @withdrawalAmmount = @withdrawalAmmount, @shippingAdress = @shippingAdress
+				END
+
+			
 		END
 END
 GO
