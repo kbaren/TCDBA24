@@ -20,7 +20,7 @@ GO
 -- =============================================
 --DROP PROCEDURE IF EXISTS usp_MoneyWithdrawal
 GO
-CREATE or Alter PROCEDURE usp_MoneyWithdrawal
+CREATE OR ALTER PROCEDURE usp_MoneyWithdrawal
 	-- Add the parameters for the stored procedure here
 	@userName				NVARCHAR(50)	, 
 	@withdrawalAmmount		FLOAT			,
@@ -34,7 +34,7 @@ BEGIN
 	-- Check that procedure received all parameters and they are correct
 	IF @userName is NULL or @withdrawalAmmount is NULL or @shippingAdress is NULL
 		BEGIN 
-			PRINT 'Please insert correct parameters'
+			PRINT 'Please insert correct parameters.'
 			RETURN
 		END
 	ELSE
@@ -42,7 +42,7 @@ BEGIN
 		BEGIN
 			IF @withdrawalAmmount> dbo.[udf_Bankroll](@userName)
 				BEGIN
-					PRINT  'Your current balance ' + CONVERT(nvarchar, dbo.[udf_Bankroll](@userName)) + '  is too small. Try smaller ammount/'
+					PRINT  'Your current balance ' + CONVERT(nvarchar, dbo.[udf_Bankroll](@userName)) + '  is too small. Try smaller ammount.'
 					RETURN
 				END
 			ELSE
