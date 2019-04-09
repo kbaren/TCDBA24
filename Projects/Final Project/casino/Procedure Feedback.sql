@@ -22,7 +22,7 @@ BEGIN
 	where UserName = @userName
 	-- Send email
 	EXEC msdb.dbo.sp_send_dbmail
-    @profile_name = 'Public Profile', 
+    --@profile_name = 'Public Profile', 
 	@from_address= @email,
 	@recipients = 'barjonya@gmail.com', 
     @subject = @subject,
