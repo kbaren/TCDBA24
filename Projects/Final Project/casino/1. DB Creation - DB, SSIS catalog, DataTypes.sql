@@ -1,29 +1,45 @@
 
------- DB Creation
+------ DB Creation  
 
 USE master
 
 IF EXISTS(select * from sys.databases where name='Casino')
 DROP DATABASE [Casino]
+GO
 declare @dataPath nvarchar(max)
 declare @logPath nvarchar(max)
 declare @sql nvarchar(max)
 
-set @dataPath = 'D:\CourseMaterials\eDate\eDate_new_Master.mdf'
-set @logPath = 'D:\CourseMaterials\eDate\eDate_new_Log.ldf'
+------/****INSERT @dataPath and @logPath variables****/-------
+
+set @dataPath = 'C:\Users\karina_b\Documents\My stuff\learning\Technion\TCDBA\Final project\DB\Casino_Master.mdf'
+set @logPath =	'C:\Users\karina_b\Documents\My stuff\learning\Technion\TCDBA\Final project\DB\Casino_Log.ldf'
 
 set @sql = 'CREATE DATABASE [Casino]
 			CONTAINMENT = NONE
 			ON  PRIMARY 
-			(NAME = ''fgMaster'', 
+			(NAME = ''Casino_Master'', 
 			FILENAME = '''+ @dataPath+''' , SIZE = 8192KB , 
 			MAXSIZE = UNLIMITED, FILEGROWTH = 7168KB) 
 			LOG ON 
-			(NAME = ''Fg_log_Log'', FILENAME = '''+@logPath+''' , SIZE = 5120KB , 
+			(NAME = ''Casino_Log'', FILENAME = '''+@logPath+''' , SIZE = 5120KB , 
 			MAXSIZE = 2048GB , FILEGROWTH = 3072KB)'
 print @sql
 exec (@sql)
+GO
+------ SSIS Catalog creation
 
+declare @filePath	nvarchar(max),
+		@SQL		nvarchar(max)
+
+------/****INSERT @filePath variable****/-------
+
+SET @filePath = 'D:\TCDBA\GitHub\TCDBA24\Projects\Final Project\'
+
+SET @SQL = 'EXEC xp_cmdshell ''powershell -Command ' + @filePath + 'Create SSIS Catalog.ps1'''
+EXEC (@SQL)
+
+GO
 ------ DataTypes creation
 USE [Casino]
 GO
@@ -57,7 +73,7 @@ GO
 
 --datatype for Address
 /****** Object:  UserDefinedDataType [address]    Script Date: 03-Apr-19 12:27:27 PM ******/
-CREATE TYPE [addressDt] FROM [nvarchar](100) NULL
+CREATE TYPE [addressDt] FROM [nvarchar](100) NULL MASKED WITH (FUNCTION = 'default()')
 GO
 
 
