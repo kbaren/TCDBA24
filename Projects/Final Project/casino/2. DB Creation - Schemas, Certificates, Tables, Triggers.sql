@@ -240,9 +240,6 @@ CREATE TABLE [Security].[utbl_CasinoManagers](
 	[GameName] [nvarchar](20) NOT NULL
 ) ON [PRIMARY] 
 
-USE [Casino]
-GO
-
 ----TEST
 --CREATE USER Archer WITHOUT LOGIN
 ----GRANT SELECT ON Sales.Orders TO Archer		
